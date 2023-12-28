@@ -164,7 +164,10 @@ async def handle_job_response(query: types.CallbackQuery, state: FSMContext):
     user_id = int(query.from_user.id)
 
     if query.data == 'accept_job':
-        job = json_data.pop(0)  # Взяли первую задачу
+        number = current_task_skip[user_id]
+        print(number)
+        job = json_data.pop(number)  # Взяли задачу по индексу
+        print(job)
         job_quantity = job["quantity"]
         taken_jobs[user_id] = job
 
@@ -194,15 +197,13 @@ async def handle_skip_job(query: types.CallbackQuery, state: FSMContext):
 
     await query.message.delete()
     current_task_skip[user_id] = number + 1
-    print(len(json_data))
-    print(number + 1)
+
     # Проверяем, есть ли новые задания в списке json_data
     if number + 1 < len(json_data):
         next_job = json_data[0]
         taken_jobs[user_id] = next_job
         await send_assembly_job(user_id, number + 1)  # Отправляем следующее задание
     elif number + 1 == len(json_data):
-        print('я пидор')
         next_job = json_data[0]
         current_task_skip[user_id] = 0
         taken_jobs[user_id] = next_job
