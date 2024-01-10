@@ -51,8 +51,7 @@ if os.path.exists(PASSWORD_FILE):
         print(admin_password)
 
 # Словарь с данными о сборочных заданиях
-with open(os.getenv('work_path'), 'r', encoding='utf-8') as file:
-    json_data = json.load(file)
+
 
 
 # Словарь для отслеживания, какие задания взяты
@@ -64,6 +63,11 @@ bot = Bot(token=TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 dp.middleware.setup(LoggingMiddleware())
+
+
+def save_data_to_file(data, file_path):
+    with open(file_path, 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
 
 
 @dp.message_handler(Command("start"))
@@ -148,6 +152,8 @@ async def admin_change_password_handler(message: types.Message, state: FSMContex
 
 # Отправка сборочного задания
 async def send_assembly_job(chat_id, index):
+    with open(os.getenv('work_path'), 'r', encoding='utf-8') as file:
+        json_data = json.load(file)
     job = json_data[index]  # Взяли первую задачу
     keyboard = InlineKeyboardMarkup(row_width=2)
     keyboard.add(InlineKeyboardButton("Принять", callback_data='accept_job'),
@@ -166,7 +172,12 @@ async def handle_job_response(query: types.CallbackQuery, state: FSMContext):
     if query.data == 'accept_job':
         number = current_task_skip[user_id]
         print(number)
+        with open(os.getenv('work_path'), 'r', encoding='utf-8') as file:
+            json_data = json.load(file)
         job = json_data.pop(number)  # Взяли задачу по индексу
+
+        with open(os.getenv('work_path'), 'w', encoding='utf-8') as file:
+            json.dump(json_data, file, ensure_ascii=False, indent=4)
         print(job)
         job_quantity = job["quantity"]
         taken_jobs[user_id] = job
@@ -198,6 +209,9 @@ async def handle_skip_job(query: types.CallbackQuery, state: FSMContext):
     await query.message.delete()
     current_task_skip[user_id] = number + 1
 
+    with open(os.getenv('work_path'), 'r', encoding='utf-8') as file:
+        json_data = json.load(file)
+
     # Проверяем, есть ли новые задания в списке json_data
     if number + 1 < len(json_data):
         next_job = json_data[0]
@@ -219,6 +233,9 @@ async def handle_skip_job(query: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(Command("menu"), state=CollectorStates.MENU)
 async def collector_menu_state(message: types.Message):
     user_id = int(message.from_user.id)
+
+    with open(os.getenv('work_path'), 'r', encoding='utf-8') as file:
+        json_data = json.load(file)
 
     if not json_data:
         await message.reply("Извините, задания закончились. Пожалуйста, попробуйте позже.")
